@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22' # Node 22+ 对 ESM + ts-node 支持更好
 
       - name: Detect project module format (CJS/ESM)
         id: detect_format
@@ -93,8 +93,10 @@ jobs:
       - name: Install dependencies
         run: |
           if [ "$IS_ESM" = "true" ]; then
-            echo "📦 ESM 项目: 使用 npm install"
+            echo "📦 ESM 项目: 安装依赖并添加 tsx"
             npm install
+            # ESM 项目需要 tsx 来处理 .ts 文件（ts-node 在 ESM 模式下有兼容问题）
+            npm install -D tsx 2>/dev/null || echo "tsx 安装失败或已存在"
           else
             echo "📦 CJS 项目: 使用 npm install"
             npm install
@@ -104,7 +106,7 @@ jobs:
         run: |
           if [ "$IS_ESM" = "true" ]; then
             echo "🔨 ESM 项目: 执行构建"
-            # ESM 项目可能需要特殊处理
+
             # 检查是否有专门的 esm 构建脚本
             ESM_BUILD_SCRIPT=$(jq -r '.scripts["build:esm"] // empty' package.json 2>/dev/null)
             if [ -n "$ESM_BUILD_SCRIPT" ]; then
@@ -112,7 +114,30 @@ jobs:
               npm run build:esm
             else
               echo "使用默认 build 脚本"
-              npm run build
+
+              # Node 22+ 对 ESM + ts-node 支持较好，先尝试直接运行
+              if npm run build; then
+                echo "✅ 构建成功"
+              else
+                echo "⚠️ 直接构建失败，尝试使用 tsx 替代 ts-node"
+
+                # 安装 tsx
+                npm install -D tsx 2>/dev/null || true
+
+                # 备份并临时替换 package.json
+                cp package.json package.json.bak
+                jq '(.scripts.compile // "") |= gsub("ts-node"; "tsx") | (.scripts.build // "") |= gsub("ts-node"; "tsx")' package.json > package.json.tmp && mv package.json.tmp package.json
+
+                echo "修改后的构建脚本:"
+                jq '.scripts | {build, compile}' package.json
+
+                # 使用 tsx 执行构建
+                npm run build
+
+                # 恢复原始 package.json
+                mv package.json.bak package.json
+                echo "✅ 使用 tsx 构建完成"
+              fi
             fi
           else
             echo "🔨 CJS 项目: 执行构建"
@@ -304,7 +329,15 @@ jobs:
                 if [ -n "$ESM_BUILD_SCRIPT" ]; then
                   npm run build:esm
                 else
-                  npm run build
+                  # 先尝试直接运行（Node 22+ 支持较好）
+                  if ! npm run build; then
+                    echo "⚠️ 直接构建失败，使用 tsx 替代"
+                    npm install -D tsx 2>/dev/null || true
+                    cp package.json package.json.bak
+                    jq '(.scripts.compile // "") |= gsub("ts-node"; "tsx") | (.scripts.build // "") |= gsub("ts-node"; "tsx")' package.json > package.json.tmp && mv package.json.tmp package.json
+                    npm run build
+                    mv package.json.bak package.json
+                  fi
                 fi
               else
                 npm run build
@@ -384,7 +417,15 @@ jobs:
                 if [ -n "$ESM_BUILD_SCRIPT" ]; then
                   npm run build:esm
                 else
-                  npm run build
+                  # 先尝试直接运行（Node 22+ 支持较好）
+                  if ! npm run build; then
+                    echo "⚠️ 直接构建失败，使用 tsx 替代"
+                    npm install -D tsx 2>/dev/null || true
+                    cp package.json package.json.bak
+                    jq '(.scripts.compile // "") |= gsub("ts-node"; "tsx") | (.scripts.build // "") |= gsub("ts-node"; "tsx")' package.json > package.json.tmp && mv package.json.tmp package.json
+                    npm run build
+                    mv package.json.bak package.json
+                  fi
                 fi
               else
                 npm run build
