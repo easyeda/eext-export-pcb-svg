@@ -2,15 +2,15 @@
 /* eslint-disable style/max-statements-per-line, no-console */
 
 /**
- * test/smoke.test.mjs — Node-only 烟雾测试。
+ * scripts/smoke.test.mjs — Node-only 烟雾测试。
  *
- * 不依赖 EDA 网桥，直接读取 test/test.zip（项目自带的 Gerber fixture），
+ * 不依赖 EDA 网桥，直接读取 ../test/test.zip（项目自带的 Gerber fixture），
  * 走与扩展完全相同的 parse → plot → walker 流水线，验证：
  *   1. 至少能解析出 ≥5 层（顶层铜、底层铜、丝印、阻焊、边框）
  *   2. 顶层铜 (GTL) 和底层铜 (GBL) 都有非零 SVG 路径元素
  *   3. 没有 tracespace parse 错误的层
  *
- * 用法：node test/smoke.test.mjs
+ * 用法：node scripts/smoke.test.mjs
  * 退出码：0=通过，1=至少一条断言失败
  */
 
@@ -22,7 +22,7 @@ import { plot } from '@tracespace/plotter';
 import JSZip from 'jszip';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FIXTURE = path.join(__dirname, 'test.zip');
+const FIXTURE = path.join(__dirname, '..', 'test', 'test.zip');
 
 const REQUIRED_LAYERS = ['GTL', 'GBL', 'GTO', 'GKO']; // 必须成功解析
 const MIN_PATH_ELEMENTS = { GTL: 100, GBL: 10 }; // 至少这么多 SVG path
