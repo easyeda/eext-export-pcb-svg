@@ -55,16 +55,36 @@ function isClosed(segs: PathSegment[], tol = 1e-3): boolean {
 	return Math.abs(ps[0] - pe[0]) < tol && Math.abs(ps[1] - pe[1]) < tol;
 }
 
-function segmentsToD(segs: PathSegment[], close: boolean): string {
+function segmentsToD(segs: PathSegment[], close: boolean, connected = false): string {
 	if (segs.length === 0)
 		return '';
-	const parts: string[] = [];
+
+	if (!connected) {
+		// imagePath：每段都是独立描边
+		const parts: string[] = [];
+		for (const seg of segs)
+			parts.push(seg.type === 'arc' ? arcToD(seg) : lineToD(seg));
+		if (close && !isClosed(segs))
+			parts.push('Z');
+		return parts.join(' ');
+	}
+
+	// imageRegion：线段首尾相连，只用一个 M 开头
+	const first = segs[0];
+	let d = `M ${num(first.start[0])} ${num(first.start[1])}`;
 	for (const seg of segs) {
-		parts.push(seg.type === 'arc' ? arcToD(seg) : lineToD(seg));
+		if (seg.type === 'arc') {
+			const r = Math.abs(seg.radius);
+			const sweep = (seg.end[2] - seg.start[2]) > 0 ? 1 : 0;
+			d += ` A ${num(r)} ${num(r)} 0 0 ${sweep} ${num(seg.end[0])} ${num(seg.end[1])}`;
+		}
+		else {
+			d += ` L ${num(seg.end[0])} ${num(seg.end[1])}`;
+		}
 	}
 	if (close && !isClosed(segs))
-		parts.push('Z');
-	return parts.join(' ');
+		d += ' Z';
+	return d;
 }
 
 function escapeAttr(s: string): string {
@@ -106,7 +126,7 @@ function shapeToPathD(shape: ImageShape['shape']): string {
 			return `M ${num(x0)} ${num(y0)} ${rest} Z`;
 		}
 		case 'outline': {
-			return segmentsToD(sh.segments, true);
+			return segmentsToD(sh.segments, true, true);
 		}
 		case 'layeredShape': {
 			const parts = sh.shapes.map(s => shapeToPathD(s));
@@ -222,7 +242,7 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 			bodyParts.push(`<path class="pcb-fill" d="${d}" />`);
 		}
 		else if (child.type === 'imageRegion') {
-			const d = segmentsToD(child.segments, true);
+			const d = segmentsToD(child.segments, true, true);
 			if (!d)
 				continue;
 			bodyParts.push(`<path class="pcb-fill" d="${d}" fill-rule="evenodd" />`);
