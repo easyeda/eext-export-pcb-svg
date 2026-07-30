@@ -99,10 +99,6 @@ function hastToXml(node: HastElement | string): string {
 	return `${open}>${inner}</${tagName}>`;
 }
 
-function num(v: number): string {
-	return Number.isFinite(v) ? (Math.round(v * 10000) / 10000).toString() : '0';
-}
-
 function safeGerberFilename(name: string): string {
 	const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Layer';
 	return `${sanitized}.svg`;
@@ -142,23 +138,6 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 		...svg.properties,
 		style: `color:${escapeAttr(color)}`,
 	};
-
-	// 在图形之前插入黑色背景
-	const viewBox = (svg.properties!.viewBox as string).split(' ').map(Number);
-	const [vx, vy, vw, vh] = viewBox;
-	const bg: HastElement = {
-		type: 'element',
-		tagName: 'rect',
-		properties: {
-			x: num(vx),
-			y: num(vy),
-			width: num(vw),
-			height: num(vh),
-			fill: '#000000',
-		},
-		children: [],
-	};
-	svg.children!.unshift(bg);
 
 	const xml = hastToXml(svg);
 
