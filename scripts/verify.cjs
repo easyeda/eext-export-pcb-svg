@@ -122,7 +122,7 @@ function assert(cond, msg) {
 
 	console.log('--- assertions ---');
 	assert(svgFiles.length >= 5, `ZIP contains ≥5 SVGs (got ${svgFiles.length})`);
-	assert(svgFiles.some(n => /^Top Copper\.svg$/i.test(n)), 'ZIP has Top Copper.svg');
+	assert(svgFiles.some(n => /Gerber_TopLayer\.GTL\.svg$/i.test(n)), 'ZIP has Gerber_TopLayer.GTL.svg');
 	assert(svgFiles.some(n => /Board Outline|\.GKO/i.test(n) || /Hole/i.test(n)), 'ZIP has either Board Outline or Hole layer');
 	let allXml = true;
 	for (const n of svgFiles) {

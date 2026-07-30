@@ -25,11 +25,6 @@ export interface RenderedSvg {
 	role: GerberLayerText['role'];
 }
 
-/** file 名清洗（保留中文与 ASCII，去掉文件系统非法字符） */
-function sanitizeFilename(name: string): string {
-	return name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Layer';
-}
-
 function num(v: number): string {
 	if (!Number.isFinite(v))
 		return '0';
@@ -129,7 +124,7 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 	}
 	catch (e) {
 		return {
-			filename: safeLayerFilename(layer.layerName),
+			filename: safeGerberFilename(layer.originalFilename),
 			role: layer.role,
 			content: `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100"><text x="10" y="50" font-size="6">Parse error: ${escapeAttr(String((e as Error).message || e))}</text></svg>`,
 		};
@@ -140,7 +135,7 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 	}
 	catch (e) {
 		return {
-			filename: safeLayerFilename(layer.layerName),
+			filename: safeGerberFilename(layer.originalFilename),
 			role: layer.role,
 			content: `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100"><text x="10" y="50" font-size="6">Plot error: ${escapeAttr(String((e as Error).message || e))}</text></svg>`,
 		};
@@ -249,14 +244,15 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 		}\n</g>\n</svg>\n`;
 
 	return {
-		filename: safeLayerFilename(layer.layerName),
+		filename: safeGerberFilename(layer.originalFilename),
 		role: layer.role,
 		content: svg,
 	};
 }
 
-function safeLayerFilename(name: string): string {
-	return `${sanitizeFilename(name)}.svg`;
+function safeGerberFilename(name: string): string {
+	const sanitized = name.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Layer';
+	return `${sanitized}.svg`;
 }
 
 /** 入口：渲染所有层 */
