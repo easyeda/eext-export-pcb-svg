@@ -8,7 +8,7 @@
 
 import type { ImageTree } from '@tracespace/plotter';
 import type { GerberLayerText } from './gerber-source.ts';
-import { parse } from '@tracespace/parser';
+import { createParser } from '@tracespace/parser';
 import { plot } from '@tracespace/plotter';
 import { render } from '@tracespace/renderer';
 
@@ -104,11 +104,23 @@ function safeGerberFilename(name: string): string {
 	return `${sanitized}.svg`;
 }
 
+/** 把 Gerber 文本分块喂给流式 parser，避免大文件一次 parse 爆栈 */
+function parseGerberText(text: string) {
+	const parser = createParser();
+	const lines = text.split('\n');
+	const CHUNK_LINES = 500;
+	for (let i = 0; i < lines.length; i += CHUNK_LINES) {
+		const chunk = lines.slice(i, i + CHUNK_LINES).join('\n');
+		parser.feed(chunk);
+	}
+	return parser.result();
+}
+
 /** 渲染一层的 SVG 文件 */
 function renderLayer(layer: GerberLayerText): RenderedSvg {
 	let tree;
 	try {
-		tree = parse(layer.text);
+		tree = parseGerberText(layer.text);
 	}
 	catch (e) {
 		return {

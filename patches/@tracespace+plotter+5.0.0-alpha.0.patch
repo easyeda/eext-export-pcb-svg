@@ -1,3 +1,30 @@
+diff --git a/node_modules/@tracespace/plotter/src/graphic-plotter/plot-macro.ts b/node_modules/@tracespace/plotter/src/graphic-plotter/plot-macro.ts
+index 0364d80..47b1d7b 100644
+--- a/node_modules/@tracespace/plotter/src/graphic-plotter/plot-macro.ts
++++ b/node_modules/@tracespace/plotter/src/graphic-plotter/plot-macro.ts
+@@ -143,17 +143,17 @@ function plotVectorLine(
+   const [dy, dx] = [ey - sy, ex - sx]
+   const halfWid = width / 2
+   const dist = Math.sqrt(dy ** 2 + dx ** 2)
+-  const [xOff, yOff] = [(halfWid * dx) / dist, (halfWid * dy) / dist]
++  const [xOff, yOff] = [(-halfWid * dy) / dist, (halfWid * dx) / dist]
+ 
+   return {
+     type: Tree.POLYGON,
+     erase: exposure === 0,
+     points: (
+       [
+-        [sx + xOff, sy - yOff],
+-        [ex + xOff, ey - yOff],
+-        [ex - xOff, ey + yOff],
+-        [sx - xOff, sy + yOff],
++        [sx + xOff, sy + yOff],
++        [ex + xOff, ey + yOff],
++        [ex - xOff, ey - yOff],
++        [sx - xOff, sy - yOff],
+       ] as Tree.Position[]
+     ).map(p => rotateAndShift(p, origin, degrees)),
+   }
 diff --git a/node_modules/@tracespace/plotter/src/graphic-plotter/plot-rect-path.ts b/node_modules/@tracespace/plotter/src/graphic-plotter/plot-rect-path.ts
 index 31ba6c9..7675b66 100644
 --- a/node_modules/@tracespace/plotter/src/graphic-plotter/plot-rect-path.ts
