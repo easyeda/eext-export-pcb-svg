@@ -9,7 +9,7 @@
  *   2. 必须有 Top Copper.svg、Board Outline 或 Hole 层
  *   3. 每个 SVG 都以 <?xml 开头
  *
- * 用法：BRIDGE_PORT=49620 node verify.cjs
+ * 用法：BRIDGE_PORT=49620 node scripts/verify.cjs
  */
 
 const { Buffer } = require('node:buffer');
@@ -21,7 +21,7 @@ const JSZip = require('jszip');
 
 const bridgePort = Number(process.env.BRIDGE_PORT || 49620);
 const CHUNK_BYTES = 96 * 1024;
-const OUT_ZIP = path.join(__dirname, 'verify-out.zip');
+const OUT_ZIP = path.join(__dirname, '..', 'verify-out.zip');
 
 function execute(code) {
 	return new Promise((resolve, reject) => {
@@ -46,7 +46,7 @@ function execute(code) {
 	});
 }
 
-const distJs = fs.readFileSync(path.join(__dirname, 'dist/index.js'), 'utf-8');
+const distJs = fs.readFileSync(path.join(__dirname, '..', 'dist/index.js'), 'utf-8');
 
 const step1 = `${distJs}\n\n`
 	+ `globalThis.__zipChunks = [];\n`

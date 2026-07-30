@@ -242,7 +242,7 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 	}
 
 	const svg = `<?xml version="1.0" encoding="UTF-8"?>\n`
-		+ `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${num(w)}" height="${num(h)}" viewBox="${num(minX - pad)} ${num(-(maxY + pad))} ${num(w)} ${num(h)}">\n`
+		+ `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${num(w)}mm" height="${num(h)}mm" viewBox="${num(minX - pad)} ${num(-(maxY + pad))} ${num(w)} ${num(h)}">\n`
 		+ `<defs><style>.pcb-fill{fill:${escapeAttr(color)};stroke:none;}.pcb-stroke{fill:none;stroke:${escapeAttr(color)};stroke-linejoin:round;stroke-linecap:round;}</style></defs>\n`
 		+ `<g class="pcb-layer" transform="scale(1,-1)">\n${
 			bodyParts.join('')
