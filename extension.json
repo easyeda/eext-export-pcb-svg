@@ -11,7 +11,7 @@
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
-		"url": "git@github.com:easyeda/eext-export-pcb-svg.git"
+		"url": "git@github.com:easyeda/eext-export-pcb-to-svg.git"
 	},
 	"categories": "PCB",
 	"keywords": [
@@ -24,8 +24,8 @@
 	"images": {
 		"logo": "./images/logo.png"
 	},
-	"homepage": "https://github.com/easyeda/eext-export-pcb-svg",
-	"bugs": "https://github.com/easyeda/eext-export-pcb-svg/issues",
+	"homepage": "https://github.com/easyeda/eext-export-pcb-to-svg",
+	"bugs": "https://github.com/easyeda/eext-export-pcb-to-svg/issues",
 	"activationEvents": {},
 	"entry": "./dist/index",
 	"dependentExtensions": {},
