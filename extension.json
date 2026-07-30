@@ -1,17 +1,17 @@
 {
 	"name": "export-pcb-svg",
-	"uuid": "",
-	"displayName": "Export PCB to SVG / 导出 PCB 为 SVG",
-	"description": "Export the current PCB document into a fully-fidelity SVG file: board outline, tracks, arcs, pads, vias, copper pours, silkscreen, drill holes, components, regions, dimensions, attributes and embedded images. / 将当前 PCB 文档导出为高保真 SVG 文件：板框、走线、圆弧、焊盘、过孔、覆铜、丝印、钻孔、器件、禁布区、尺寸标注、属性、内嵌图片等。",
+	"uuid": "a15fd4e1806d4745b85b4c3d09e1d3db",
+	"displayName": "导出 PCB 为 SVG",
+	"description": "将当前 PCB 文档导出为高保真 SVG 文件：板框、走线、圆弧、焊盘、过孔、覆铜、丝印、钻孔、器件、禁布区、尺寸标注、属性、内嵌图片等。",
 	"version": "1.0.0",
-	"publisher": "",
+	"publisher": "EasyEDA",
 	"engines": {
 		"eda": "^3.2.0"
 	},
 	"license": "Apache-2.0",
 	"repository": {
-		"type": "extension-store",
-		"url": ""
+		"type": "git",
+		"url": "git@github.com:easyeda/eext-export-pcb-svg.git"
 	},
 	"categories": "PCB",
 	"keywords": [
@@ -24,26 +24,12 @@
 	"images": {
 		"logo": "./images/logo.png"
 	},
-	"homepage": "",
-	"bugs": "",
+	"homepage": "https://github.com/easyeda/eext-export-pcb-svg",
+	"bugs": "https://github.com/easyeda/eext-export-pcb-svg/issues",
 	"activationEvents": {},
 	"entry": "./dist/index",
 	"dependentExtensions": {},
 	"headerMenus": {
-		"home": [
-			{
-				"id": "exportPcbSvgMenu",
-				"title": "Export PCB to SVG",
-				"registerFn": "menuPlaceholder"
-			}
-		],
-		"sch": [
-			{
-				"id": "exportPcbSvgSchMenu",
-				"title": "Export PCB to SVG",
-				"registerFn": "menuPlaceholder"
-			}
-		],
 		"pcb": [
 			{
 				"id": "exportPcbSvgPcbMenu",
@@ -58,11 +44,6 @@
 						"id": "ExportAllBoardsToSvg",
 						"title": "Export All Boards to SVG...",
 						"registerFn": "exportAllBoardsToSvg"
-					},
-					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
 					}
 				]
 			}

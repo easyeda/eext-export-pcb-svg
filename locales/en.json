@@ -1,4 +1,13 @@
 {
 	"About": "About",
-	"EasyEDA extension SDK v": "EasyEDA extension SDK v${1}"
+	"EasyEDA extension SDK v": "EasyEDA extension SDK v${1}",
+	"Export PCB to SVG v${1}": "Export PCB to SVG v${1}",
+	"Please open the PCB document and use the Export PCB to SVG menu.": "Please open the PCB document and use the Export PCB to SVG menu.",
+	"Please open a PCB document first.": "Please open a PCB document first.",
+	"No boards found in the current project.": "No boards found in the current project.",
+	"No PCB primitives found, nothing to export.": "No PCB primitives found, nothing to export.",
+	"Collecting PCB data, please wait...": "Collecting PCB data, please wait...",
+	"Exported ${1} SVG file(s) for ${2}.": "Exported ${1} SVG file(s) for ${2}.",
+	"Exported ${1} board(s).": "Exported ${1} board(s).",
+	"Export failed: ${1}": "Export failed: ${1}"
 }

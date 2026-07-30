@@ -6,3 +6,11 @@
 /node_modules/
 /.eslintcache
 debug.log
+
+# Build / run artifacts
+*.zip
+!test/test.zip
+verify-out/
+verify-out.zip
+gerber-sample.zip
+*.eext

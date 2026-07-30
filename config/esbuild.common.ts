@@ -18,4 +18,6 @@ export default {
 	ignoreAnnotations: true,
 	define: {},
 	external: [],
+	mainFields: ['browser', 'module', 'main'],
+	conditions: ['browser', 'import', 'default'],
 } satisfies Parameters<(typeof esbuild)['build']>[0];

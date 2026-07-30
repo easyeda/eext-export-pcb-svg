@@ -23,6 +23,10 @@
 		"manifest:generate": "npm install && ts-node ./build/manifest.ts generate",
 		"manifest:bump": "npm install && ts-node ./build/manifest.ts bump && npm install"
 	},
+	"dependencies": {
+		"@tracespace/parser": "^5.0.0-alpha.0",
+		"@tracespace/plotter": "^5.0.0-alpha.0"
+	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^5.4.1",
 		"@jlceda/pro-api-types": "^0.3.11",

@@ -1,3 +1,6 @@
 {
+	"Export PCB to SVG": "导出 PCB 为 SVG",
+	"Export Current Board to SVG...": "导出当前板子为 SVG...",
+	"Export All Boards to SVG...": "导出所有板子为 SVG...",
 	"About...": "关于..."
 }

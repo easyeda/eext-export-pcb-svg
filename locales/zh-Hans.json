@@ -1,4 +1,13 @@
 {
 	"About": "关于",
-	"EasyEDA extension SDK v": "嘉立创EDA 扩展 SDK v${1}"
+	"EasyEDA extension SDK v": "嘉立创EDA 扩展 SDK v${1}",
+	"Export PCB to SVG v${1}": "导出 PCB 为 SVG v${1}",
+	"Please open the PCB document and use the Export PCB to SVG menu.": "请打开 PCB 文档后使用 “导出 PCB 为 SVG” 菜单。",
+	"Please open a PCB document first.": "请先打开 PCB 文档。",
+	"No boards found in the current project.": "当前工程下没有可导出的板子。",
+	"No PCB primitives found, nothing to export.": "未找到 PCB 图元，无需导出。",
+	"Collecting PCB data, please wait...": "正在收集 PCB 数据，请稍候...",
+	"Exported ${1} SVG file(s) for ${2}.": "已为 ${2} 导出 ${1} 个 SVG 文件。",
+	"Exported ${1} board(s).": "已导出 ${1} 个板子。",
+	"Export failed: ${1}": "导出失败：${1}"
 }
