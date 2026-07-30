@@ -13,6 +13,7 @@
 		"node": ">=20.17.0"
 	},
 	"scripts": {
+		"postinstall": "patch-package",
 		"compile": "rimraf ./dist/ && ts-node ./config/esbuild.prod.ts",
 		"lint": "eslint",
 		"fix": "eslint --fix",
@@ -26,7 +27,8 @@
 	"dependencies": {
 		"@tracespace/parser": "^5.0.0-alpha.0",
 		"@tracespace/plotter": "^5.0.0-alpha.0",
-		"@tracespace/renderer": "^5.0.0-alpha.0"
+		"@tracespace/renderer": "^5.0.0-alpha.0",
+		"jszip": "^3.10.1"
 	},
 	"devDependencies": {
 		"@antfu/eslint-config": "^5.4.1",
@@ -37,8 +39,8 @@
 		"eslint": "^9.37.0",
 		"fs-extra": "^11.3.0",
 		"ignore": "^7.0.3",
-		"jszip": "^3.10.1",
 		"lint-staged": "^16.2.3",
+		"patch-package": "^8.0.1",
 		"rimraf": "^6.0.1",
 		"simple-git-hooks": "^2.13.1",
 		"ts-node": "^10.9.2",

@@ -1,15 +1,15 @@
 /* eslint-disable style/max-statements-per-line, no-console */
 
 /**
- * verify.cjs — 在 EDA 网桥内拦截 saveFile，触发 exportCurrentBoardToSvg，
- *              把 ZIP 字节分块拉回本地，并校验 ZIP 顶层内容。
+ * test/verify.cjs — 在 EDA 网桥内拦截 saveFile，触发 exportCurrentBoardToSvg，
+ *                    把 ZIP 字节分块拉回本地，并校验 ZIP 顶层内容。
  *
  * 校验：
  *   1. ZIP 包含至少 5 个 SVG 文件
  *   2. 必须有 Top Copper.svg、Board Outline 或 Hole 层
  *   3. 每个 SVG 都以 <?xml 开头
  *
- * 用法：BRIDGE_PORT=49620 node scripts/verify.cjs
+ * 用法：BRIDGE_PORT=49620 node test/verify.cjs
  */
 
 const { Buffer } = require('node:buffer');

@@ -4,6 +4,9 @@ export default {
 	entryPoints: {
 		index: './src/index',
 	},
+	alias: {
+		'@tracespace/plotter': './node_modules/@tracespace/plotter/src/index.ts',
+	},
 	entryNames: '[name]',
 	assetNames: '[name]',
 	bundle: true, // 用于内部方法调用，请勿修改
