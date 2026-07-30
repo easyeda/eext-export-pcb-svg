@@ -10,8 +10,8 @@
 	},
 	"license": "Apache-2.0",
 	"repository": {
-		"type": "git",
-		"url": "git@github.com:easyeda/eext-export-pcb-to-svg.git"
+		"type": "github",
+		"url": "https://github.com/easyeda/eext-export-pcb-to-svg"
 	},
 	"categories": "PCB",
 	"keywords": [
