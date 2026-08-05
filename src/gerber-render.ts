@@ -12,7 +12,7 @@ import type { PourGeom, PourNet } from './pour-net.ts';
 import { createParser } from '@tracespace/parser';
 import { plot } from '@tracespace/plotter';
 import { render } from '@tracespace/renderer';
-import { collectBoardOutlineRect, collectPourGeoms, MM2MIL, netAtPoint } from './pour-net.ts';
+import { collectPourGeoms, MM2MIL, netAtPoint } from './pour-net.ts';
 
 export interface RenderedSvg {
 	filename: string;
@@ -131,8 +131,93 @@ function copperCanvasLayerId(layer: GerberLayerText): number | null {
 	return null;
 }
 
-/** 计算一系列线段点的包围盒中心（mm，Y 向上，与画布 mil Y 向上一致）。 */
-function segmentsBBoxCenter(segments: Array<{ start: number[]; end: number[] }>): [number, number] {
+/**
+ * 推导铺铜 complexPolygon 坐标系与画布 mil 坐标系之间的偏移量（纯平移）。
+ *
+ * 画布 mil = SVG(mm) × MM2MIL + 0（走线已验证无偏移）；而铺铜 complexPolygon 位于
+ * 一个随板子变化的偏移坐标系里。这里用"铺铜包围盒中心 ↔ SVG 填充区域中心"的差做聚类：
+ * 同一块板子上所有铺铜共享同一偏移，正确偏移跨铺铜重复出现，聚成主簇；错误配对则散乱。
+ * 与脆弱的 getPrimitivesInRegion 无关，对单铺铜/多铺铜板子都可靠。
+ *
+ * 对每个铺铜，按包围盒尺寸（w/h）在 SVG imageRegion 中挑选最相似的一块，取其中心差。
+ * 返回 null 表示无法推导（该板子某铜层无铺铜区域）。
+ */
+function derivePourOffset(
+	rendered: Array<{ ok: boolean; layer: GerberLayerText; image: ImageTree } | { ok: false }>,
+	poursByLayer: Map<number, PourGeom[]>,
+): { dx: number; dy: number } | null {
+	for (const r of rendered) {
+		if (!r.ok)
+			continue;
+		const layerId = copperCanvasLayerId(r.layer);
+		if (layerId === null)
+			continue;
+		const pours = poursByLayer.get(layerId) || [];
+		if (pours.length === 0)
+			continue;
+		const regions = (r.image.children || []).filter(
+			c => c && (c as { type?: string }).type === 'imageRegion',
+		) as Array<{ segments?: Array<{ start: number[]; end: number[] }> }>;
+		if (regions.length === 0)
+			continue;
+
+		const candidates: Array<[number, number]> = [];
+		for (const p of pours) {
+			if (!p.rect || p.rect.w <= 0 || p.rect.h <= 0)
+				continue;
+			const pcx = p.rect.x + p.rect.w / 2;
+			const pcy = p.rect.y + p.rect.h / 2;
+			let bestBb: [number, number, number, number] | null = null;
+			let bestScore = Infinity;
+			for (const reg of regions) {
+				const bb = segmentsBBox(reg.segments || []);
+				if (!bb)
+					continue;
+				const wMil = (bb[2] - bb[0]) * MM2MIL;
+				const hMil = (bb[3] - bb[1]) * MM2MIL;
+				// 尺寸需与铺铜 outline 同量级，避免把小铺铜误配到大区域
+				if (wMil / p.rect.w < 0.4 || wMil / p.rect.w > 2.5)
+					continue;
+				if (hMil / p.rect.h < 0.4 || hMil / p.rect.h > 2.5)
+					continue;
+				const score = Math.abs(wMil - p.rect.w) + Math.abs(hMil - p.rect.h);
+				if (score < bestScore) {
+					bestScore = score;
+					bestBb = bb;
+				}
+			}
+			if (!bestBb)
+				continue;
+			const cx = ((bestBb[0] + bestBb[2]) / 2) * MM2MIL;
+			const cy = ((bestBb[1] + bestBb[3]) / 2) * MM2MIL;
+			candidates.push([cx - pcx, cy - pcy]);
+		}
+		if (candidates.length === 0)
+			continue;
+
+		const counts = new Map<string, number>();
+		for (const [dx, dy] of candidates) {
+			const key = `${Math.round(dx)},${Math.round(dy)}`;
+			counts.set(key, (counts.get(key) || 0) + 1);
+		}
+		let bestKey: string | null = null;
+		let bestCount = 0;
+		for (const [k, c] of counts) {
+			if (c > bestCount) {
+				bestCount = c;
+				bestKey = k;
+			}
+		}
+		if (!bestKey)
+			continue;
+		const [dx, dy] = bestKey.split(',').map(Number);
+		return { dx, dy };
+	}
+	return null;
+}
+
+/** 计算一系列线段点的包围盒 [minX, minY, maxX, maxY]（mm，Y 向上，与画布 mil Y 向上一致）。 */
+function segmentsBBox(segments: Array<{ start: number[]; end: number[] }>): [number, number, number, number] | null {
 	let minX = Infinity;
 	let maxX = -Infinity;
 	let minY = Infinity;
@@ -149,7 +234,15 @@ function segmentsBBoxCenter(segments: Array<{ start: number[]; end: number[] }>)
 				maxY = y;
 		}
 	}
-	return [(minX + maxX) / 2, (minY + maxY) / 2];
+	if (minX === Infinity)
+		return null;
+	return [minX, minY, maxX, maxY];
+}
+
+/** 计算一系列线段点的包围盒中心（mm，Y 向上，与画布 mil Y 向上一致）。 */
+function segmentsBBoxCenter(segments: Array<{ start: number[]; end: number[] }>): [number, number] {
+	const bb = segmentsBBox(segments);
+	return bb ? [(bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2] : [0, 0];
 }
 
 /** 取一个 image 节点用于画布命中测试的代表点（mm）。shape 类型见 @tracespace/plotter tree.ts。 */
@@ -269,19 +362,15 @@ export async function renderGerberLayersToSvgs(
 	for (let i = 0; i < layers.length; i++)
 		rendered.push(await renderLayerToTree(layers[i]));
 
-	// 用板框层的 image.size（mm）推导画布最小角，再与板框 ComplexPolygon 的差求偏移量
-	let offset: { dx: number; dy: number } | null = null;
-	const outline = rendered.find(r => r.ok && r.layer.role === 'outline');
-	if (outline && outline.ok) {
-		const [sx1, sy1] = outline.image.size;
-		if (typeof sx1 === 'number' && typeof sy1 === 'number') {
-			const boardMinMil = { x: sx1 * MM2MIL, y: sy1 * MM2MIL };
-			const boardRect = await collectBoardOutlineRect();
-			if (boardRect)
-				offset = { dx: boardRect.x - boardMinMil.x, dy: boardRect.y - boardMinMil.y };
-		}
-	}
+	// 用"铺铜包围盒中心 ↔ SVG 填充区域中心"聚类推导 complexPolygon 偏移量
 	const pourGeoms = await collectPourGeoms();
+	const poursByLayer = new Map<number, PourGeom[]>();
+	for (const g of pourGeoms) {
+		if (!poursByLayer.has(g.layer))
+			poursByLayer.set(g.layer, []);
+		poursByLayer.get(g.layer)!.push(g);
+	}
+	const offset = derivePourOffset(rendered, poursByLayer);
 
 	const out: RenderedSvg[] = [];
 	for (const r of rendered) {

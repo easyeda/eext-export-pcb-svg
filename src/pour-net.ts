@@ -176,38 +176,6 @@ export async function collectPourGeoms(): Promise<PourGeom[]> {
 	return out;
 }
 
-/**
- * 读取板框（Board Outline，layer 11）的 ComplexPolygon 包围盒（偏移坐标系）。
- * 板框的 draw rect 与画布实际位置精确对应，用它和画布位置的差推导出偏移量。
- * 返回 null 表示找不到板框。
- */
-export async function collectBoardOutlineRect(): Promise<{ x: number; y: number; w: number; h: number } | null> {
-	try {
-		const prims = await eda.pcb_Document.getPrimitivesInRegion(-1e9, 1e9, -1e9, 1e9);
-		if (!Array.isArray(prims))
-			return null;
-		for (const p of prims) {
-			const a = asHitPrimitive(p);
-			if (!a)
-				continue;
-			const layer = a.getState_Layer ? a.getState_Layer() : a.layer;
-			if (typeof layer !== 'number' || layer !== 11)
-				continue;
-			const cp = a.getState_ComplexPolygon ? a.getState_ComplexPolygon() : null;
-			const poly = cp && Array.isArray((cp as { polygon?: unknown }).polygon)
-				? (cp as { polygon: unknown }).polygon
-				: cp;
-			const rect = polygonBBox(poly);
-			if (rect)
-				return rect;
-		}
-	}
-	catch (e) {
-		console.warn('[export-pcb-svg] collectBoardOutlineRect failed:', e);
-	}
-	return null;
-}
-
 export interface NetAtPointOptions {
 	/** 当前铜皮 SVG 层对应的画布层 id */
 	expectedLayerId: number;
