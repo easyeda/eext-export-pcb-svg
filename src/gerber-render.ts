@@ -8,9 +8,11 @@
 
 import type { ImageTree } from '@tracespace/plotter';
 import type { GerberLayerText } from './gerber-source.ts';
+import type { PourGeom, PourNet } from './pour-net.ts';
 import { createParser } from '@tracespace/parser';
 import { plot } from '@tracespace/plotter';
 import { render } from '@tracespace/renderer';
+import { collectBoardOutlineRect, collectPourGeoms, MM2MIL, netAtPoint } from './pour-net.ts';
 
 export interface RenderedSvg {
 	filename: string;
@@ -116,14 +118,120 @@ function parseGerberText(text: string) {
 	return parser.result();
 }
 
-/** 渲染一层的 SVG 文件 */
-function renderLayer(layer: GerberLayerText): RenderedSvg {
+/** 铜皮画布层 id：topCopper=1, bottomCopper=2, innerN=14+N */
+function copperCanvasLayerId(layer: GerberLayerText): number | null {
+	if (layer.role === 'topCopper')
+		return 1;
+	if (layer.role === 'bottomCopper')
+		return 2;
+	if (layer.role === 'inner') {
+		const m = /inner(\d+)/i.exec(layer.layerName) || /\.g(\d+)$/i.exec(layer.originalFilename);
+		return m ? 14 + Number(m[1]) : null;
+	}
+	return null;
+}
+
+/** 计算一系列线段点的包围盒中心（mm，Y 向上，与画布 mil Y 向上一致）。 */
+function segmentsBBoxCenter(segments: Array<{ start: number[]; end: number[] }>): [number, number] {
+	let minX = Infinity;
+	let maxX = -Infinity;
+	let minY = Infinity;
+	let maxY = -Infinity;
+	for (const seg of segments) {
+		for (const [x, y] of [seg.start, seg.end]) {
+			if (x < minX)
+				minX = x;
+			if (x > maxX)
+				maxX = x;
+			if (y < minY)
+				minY = y;
+			if (y > maxY)
+				maxY = y;
+		}
+	}
+	return [(minX + maxX) / 2, (minY + maxY) / 2];
+}
+
+/** 取一个 image 节点用于画布命中测试的代表点（mm）。shape 类型见 @tracespace/plotter tree.ts。 */
+function nodeRepPointMm(node: { type: string; segments?: Array<{ start: number[]; end: number[] }>; shape?: Record<string, unknown> }): [number, number] | null {
+	if (node.type === 'imageRegion' || node.type === 'imagePath') {
+		if (!node.segments || node.segments.length === 0)
+			return null;
+		return segmentsBBoxCenter(node.segments);
+	}
+	if (node.type === 'imageShape' && node.shape) {
+		const s = node.shape as Record<string, number | number[] | Array<{ start: number[]; end: number[] }>>;
+		switch (s.type) {
+			case 'circle':
+				return [s.cx as number, s.cy as number];
+			case 'rectangle':
+				return [s.x as number + (s.xSize as number) / 2, s.y as number + (s.ySize as number) / 2];
+			case 'polygon': {
+				const pts = s.points as number[][];
+				const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+				const cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+				return [cx, cy];
+			}
+			case 'outline':
+				return segmentsBBoxCenter(s.segments as Array<{ start: number[]; end: number[] }>);
+			default:
+				return null;
+		}
+	}
+	return null;
+}
+
+/**
+ * 给铜皮层每个节点标注 net 属性（image.children 与 svg.children 一一对应）。
+ * 对节点代表点（区域重心 / 图形中心 / 走线中点）调用画布命中网络。
+ */
+async function attachNets(
+	image: ImageTree,
+	svg: HastElement,
+	layerId: number,
+	pourById: Map<string, PourNet>,
+	pourGeoms: PourGeom[],
+	offset: { dx: number; dy: number },
+): Promise<void> {
+	const imageChildren = image.children;
+	const svgChildren = svg.children;
+	if (!Array.isArray(svgChildren))
+		return;
+	const n = Math.min(imageChildren.length, svgChildren.length);
+	for (let i = 0; i < n; i++) {
+		const node = imageChildren[i];
+		if (!node)
+			continue;
+		const rep = nodeRepPointMm(node as { type: string; segments?: Array<{ start: number[]; end: number[] }>; shape?: Record<string, unknown> });
+		if (!rep)
+			continue;
+		const [mmX, mmY] = rep;
+		const net = await netAtPoint(mmX * MM2MIL, mmY * MM2MIL, {
+			expectedLayerId: layerId,
+			pourById,
+			pourGeoms,
+			offset,
+		});
+		if (!net)
+			continue;
+		const el = svgChildren[i] as HastElement;
+		if (typeof el === 'object' && el.type === 'element') {
+			el.properties = { ...(el.properties ?? {}), net };
+		}
+	}
+}
+
+/** 渲染一层为 image-tree + HastElement（不标注 net、不序列化）。解析/铺铜失败时返回错误 SVG。 */
+async function renderLayerToTree(
+	layer: GerberLayerText,
+): Promise<{ ok: true; layer: GerberLayerText; image: ImageTree; svg: HastElement } | { ok: false; content: string; role: GerberLayerText['role']; filename: string }> {
 	let tree;
 	try {
 		tree = parseGerberText(layer.text);
 	}
 	catch (e) {
 		return {
+			ok: false,
 			filename: safeGerberFilename(layer.originalFilename),
 			role: layer.role,
 			content: `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100"><text x="10" y="50" font-size="6">Parse error: ${escapeAttr(String((e as Error).message || e))}</text></svg>`,
@@ -136,31 +244,68 @@ function renderLayer(layer: GerberLayerText): RenderedSvg {
 	}
 	catch (e) {
 		return {
+			ok: false,
 			filename: safeGerberFilename(layer.originalFilename),
 			role: layer.role,
 			content: `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 100 100"><text x="10" y="50" font-size="6">Plot error: ${escapeAttr(String((e as Error).message || e))}</text></svg>`,
 		};
 	}
 
-	const color = layer.color || '#888888';
-	const svg = render(image) as HastElement;
-
-	// 设置整层颜色（fill/stroke 使用 currentColor）
-	svg.properties = {
-		...svg.properties,
-		style: `color:${escapeAttr(color)}`,
-	};
-
-	const xml = hastToXml(svg);
-
-	return {
-		filename: safeGerberFilename(layer.originalFilename),
-		role: layer.role,
-		content: `<?xml version="1.0" encoding="UTF-8"?>\n${xml}\n`,
-	};
+	return { ok: true, layer, image, svg: render(image) as HastElement };
 }
 
-/** 入口：渲染所有层 */
-export function renderGerberLayersToSvgs(layers: GerberLayerText[]): RenderedSvg[] {
-	return layers.map(renderLayer);
+/**
+ * 入口：渲染所有层。
+ * 先渲染全部层并取板框（outline）的画布最小角，推导 ComplexPolygon 偏移量，
+ * 再给铜皮层标注 `net` 属性。
+ * @param layers 各层 Gerber 文本
+ * @param pourById 画布覆铜网络表（primitiveId → 网络），用于给铜皮区域标注 `net` 属性
+ */
+export async function renderGerberLayersToSvgs(
+	layers: GerberLayerText[],
+	pourById: Map<string, PourNet> = new Map(),
+): Promise<RenderedSvg[]> {
+	const rendered: Array<{ ok: true; layer: GerberLayerText; image: ImageTree; svg: HastElement } | { ok: false; content: string; role: GerberLayerText['role']; filename: string }> = [];
+	for (let i = 0; i < layers.length; i++)
+		rendered.push(await renderLayerToTree(layers[i]));
+
+	// 用板框层的 image.size（mm）推导画布最小角，再与板框 ComplexPolygon 的差求偏移量
+	let offset: { dx: number; dy: number } | null = null;
+	const outline = rendered.find(r => r.ok && r.layer.role === 'outline');
+	if (outline && outline.ok) {
+		const [sx1, sy1] = outline.image.size;
+		if (typeof sx1 === 'number' && typeof sy1 === 'number') {
+			const boardMinMil = { x: sx1 * MM2MIL, y: sy1 * MM2MIL };
+			const boardRect = await collectBoardOutlineRect();
+			if (boardRect)
+				offset = { dx: boardRect.x - boardMinMil.x, dy: boardRect.y - boardMinMil.y };
+		}
+	}
+	const pourGeoms = await collectPourGeoms();
+
+	const out: RenderedSvg[] = [];
+	for (const r of rendered) {
+		if (!r.ok) {
+			out.push({ filename: r.filename, role: r.role, content: r.content });
+			continue;
+		}
+		const { layer, image, svg } = r;
+		const color = layer.color || '#888888';
+		svg.properties = {
+			...svg.properties,
+			style: `color:${escapeAttr(color)}`,
+		};
+
+		const canvasLayerId = copperCanvasLayerId(layer);
+		if (canvasLayerId !== null && offset)
+			await attachNets(image, svg, canvasLayerId, pourById, pourGeoms, offset);
+
+		const xml = hastToXml(svg);
+		out.push({
+			filename: safeGerberFilename(layer.originalFilename),
+			role: layer.role,
+			content: `<?xml version="1.0" encoding="UTF-8"?>\n${xml}\n`,
+		});
+	}
+	return out;
 }

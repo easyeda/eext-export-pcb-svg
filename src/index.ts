@@ -7,6 +7,7 @@
 import extensionConfig from '../extension.json' with { type: 'json' };
 import { renderGerberLayersToSvgs } from './gerber-render.ts';
 import { collectGerberSources } from './gerber-source.ts';
+import { collectPourNets } from './pour-net.ts';
 import { buildZipBlobFromText } from './zip-builder.ts';
 
 declare const eda: {
@@ -95,8 +96,11 @@ async function exportOneBoard(boardName: string): Promise<{ zipName: string; blo
 	if (layers.length === 0)
 		throw new Error('No Gerber layers in bundle');
 
+	const pourById = await collectPourNets();
+	console.log(`[export-pcb-svg] step: pourNets=${pourById.size}`);
+
 	console.log('[export-pcb-svg] step: render SVG');
-	const rendered = renderGerberLayersToSvgs(layers);
+	const rendered = await renderGerberLayersToSvgs(layers, pourById);
 	const fileMap: Record<string, string> = {};
 	for (const f of rendered) fileMap[f.filename] = f.content;
 
