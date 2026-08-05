@@ -69,26 +69,31 @@ async function checkPcbActive(): Promise<boolean> {
 	}
 }
 
-async function getBoardName(): Promise<string> {
+interface BoardNameInfo {
+	boardName: string;
+	pcbName: string | null;
+}
+
+async function getBoardNameInfo(): Promise<BoardNameInfo> {
 	try {
 		const info = await eda.dmt_Board.getCurrentBoardInfo();
-		if (info?.name)
-			return info.name;
-		if (info?.pcb?.name)
-			return info.pcb.name;
+		const boardName = info?.name || null;
+		const pcbName = info?.pcb?.name || null;
+		if (boardName || pcbName)
+			return { boardName: boardName || 'PCB', pcbName };
 		const project = await eda.dmt_Project.getCurrentProjectInfo();
 		if (project?.friendlyName)
-			return project.friendlyName;
+			return { boardName: project.friendlyName, pcbName: null };
 		if (project?.name)
-			return project.name;
-		return 'PCB';
+			return { boardName: project.name, pcbName: null };
+		return { boardName: 'PCB', pcbName: null };
 	}
 	catch {
-		return 'PCB';
+		return { boardName: 'PCB', pcbName: null };
 	}
 }
 
-async function exportOneBoard(boardName: string): Promise<{ zipName: string; blob: Blob; fileCount: number }> {
+async function exportOneBoard(boardName: string, pcbName: string | null): Promise<{ zipName: string; blob: Blob; fileCount: number }> {
 	console.log('[export-pcb-svg] step: getGerberFile');
 	const layers = await collectGerberSources();
 	console.log(`[export-pcb-svg] step: layers=${layers.length}`);
@@ -105,7 +110,10 @@ async function exportOneBoard(boardName: string): Promise<{ zipName: string; blo
 	for (const f of rendered) fileMap[f.filename] = f.content;
 
 	const blob = await buildZipBlobFromText(fileMap);
-	const zipName = `${sanitizeFilename(boardName)}.zip`;
+	const parts = ['SVG', sanitizeFilename(boardName)];
+	if (pcbName)
+		parts.push(sanitizeFilename(pcbName));
+	const zipName = `${parts.join('_')}.zip`;
 	return { zipName, blob, fileCount: rendered.length };
 }
 
@@ -123,10 +131,10 @@ export async function exportCurrentBoardToSvg(): Promise<void> {
 			eda.sys_Dialog.showInformationMessage('', t(MESSAGES.openPcbFirst, MESSAGES.openPcbFirst));
 			return;
 		}
-		const boardName = await getBoardName();
+		const { boardName, pcbName } = await getBoardNameInfo();
 		eda.sys_Message.showToastMessage(t(MESSAGES.collecting, MESSAGES.collecting));
 
-		const { zipName, blob, fileCount } = await exportOneBoard(boardName);
+		const { zipName, blob, fileCount } = await exportOneBoard(boardName, pcbName);
 		console.log(`[export-pcb-svg] step: fileCount=${fileCount}`);
 
 		if (fileCount === 0) {
